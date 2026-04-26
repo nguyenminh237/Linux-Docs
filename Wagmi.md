@@ -210,14 +210,16 @@ cast send "$COUNTER_ADDRESS" "increment()" \
 Từ root workspace:
 
 ```bash
-npm create vite@latest web -- --template react-ts
+npm create vite@latest web -- --template react
 cd web
 npm install
 ```
 
 Giải thích:
 
-- Vite là bundler nhanh, template `react-ts` giúp code TypeScript “đỡ đau” khi làm web3
+- Vite là bundler nhanh, template `react` tạo project React **JavaScript** (đúng với bạn đang học)
+
+> Nếu bạn muốn dùng TypeScript: thay `--template react` bằng `--template react-ts`. Khi đó các file sẽ là `.ts/.tsx` và có thêm type (không bắt buộc).
 
 Chạy thử:
 
@@ -261,13 +263,13 @@ Giải thích:
 
 Bạn có 2 cách:
 
-#### Cách A (dễ hiểu): Copy ABI sang file TypeScript
+#### Cách A (dễ hiểu): Copy ABI sang file JavaScript
 
 Mở file `contracts/out/Counter.sol/Counter.json`, tìm key `abi` (mảng JSON), copy và tạo file:
 
-`web/src/abi/counterAbi.ts`
+`web/src/abi/counterAbi.js`
 
-```ts
+```js
 export const counterAbi = [
   {
     type: "constructor",
@@ -311,7 +313,7 @@ export const counterAbi = [
     outputs: [],
     stateMutability: "nonpayable",
   },
-] as const;
+];
 ```
 
 > ABI trên là đúng với contract `Counter` ở phần Foundry. Nếu bạn sửa contract, hãy build lại và cập nhật ABI.
@@ -322,14 +324,14 @@ Bạn có thể copy cả `Counter.json` hoặc chỉ `abi` sang JSON rồi impo
 
 ### 2.5. Setup Wagmi config
 
-Tạo file `web/src/wagmi.ts`:
+Tạo file `web/src/wagmi.js`:
 
-```ts
+```js
 import { createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { metaMask } from "wagmi/connectors";
 
-const sepoliaRpcUrl = import.meta.env.VITE_SEPOLIA_RPC_URL as string;
+const sepoliaRpcUrl = import.meta.env.VITE_SEPOLIA_RPC_URL;
 
 export const wagmiConfig = createConfig({
   chains: [sepolia],
@@ -348,9 +350,9 @@ Giải thích:
 
 ### 2.6. Bọc Provider ở entrypoint
 
-Mở `web/src/main.tsx` và bọc thêm `WagmiProvider` + `QueryClientProvider`:
+Mở `web/src/main.jsx` và bọc thêm `WagmiProvider` + `QueryClientProvider`:
 
-```tsx
+```jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -361,7 +363,7 @@ import { wagmiConfig } from "./wagmi";
 
 const queryClient = new QueryClient();
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
@@ -372,6 +374,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 ```
 
+> Nếu bạn dùng TypeScript (`react-ts`), bạn có thể thấy cú pháp `document.getElementById("root")!` (non-null assertion). Với JavaScript (`react` template) thì **không dùng** dấu `!`.
+
 Giải thích:
 
 - `WagmiProvider`: đưa config xuống toàn bộ component tree để các hook wagmi dùng được
@@ -381,14 +385,14 @@ Giải thích:
 
 ## 3) UI tối thiểu: Connect wallet + hiển thị chain + ETH balance
 
-Thay `web/src/App.tsx` bằng phiên bản tối thiểu dưới đây.
+Thay `web/src/App.jsx` bằng phiên bản tối thiểu dưới đây.
 
 ### 3.1. App: connect/disconnect + switch Sepolia + ETH balance
 
-`web/src/App.tsx`
+`web/src/App.jsx`
 
-```tsx
-import { useMemo, useState } from "react";
+```jsx
+import { useMemo } from "react";
 import {
   useAccount,
   useBalance,
@@ -512,9 +516,9 @@ Tạo component `CounterPanel`.
 
 ### 4.1. `CounterPanel`: read number + increment + setNumber
 
-Tạo file `web/src/CounterPanel.tsx`:
+Tạo file `web/src/CounterPanel.jsx`:
 
-```tsx
+```jsx
 import { useEffect, useMemo, useState } from "react";
 import {
   useReadContract,
@@ -528,19 +532,12 @@ import { parseAbiItem } from "viem";
 
 import { counterAbi } from "./abi/counterAbi";
 
-type Props = {
-  isWalletConnected: boolean;
-  isOnSepolia: boolean;
-};
+const counterAddress = import.meta.env.VITE_COUNTER_ADDRESS;
+const deployBlock = BigInt(import.meta.env.VITE_COUNTER_DEPLOY_BLOCK || "0");
 
-const counterAddress = import.meta.env.VITE_COUNTER_ADDRESS as `0x${string}`;
-const deployBlock = BigInt(import.meta.env.VITE_COUNTER_DEPLOY_BLOCK ?? "0");
-
-export function CounterPanel({ isWalletConnected, isOnSepolia }: Props) {
+export function CounterPanel({ isWalletConnected, isOnSepolia }) {
   const [newNumber, setNewNumber] = useState("");
-  const [history, setHistory] = useState<
-    Array<{ name: string; by: string; newNumber: string }>
-  >([]);
+  const [history, setHistory] = useState([]);
 
   // Public client để query logs (event history)
   const publicClient = usePublicClient({ chainId: sepolia.id });
@@ -735,7 +732,7 @@ export function CounterPanel({ isWalletConnected, isOnSepolia }: Props) {
                 address: counterAddress,
                 abi: counterAbi,
                 functionName: "setNumber",
-                args: [parsedNewNumber!],
+                args: [parsedNewNumber],
                 chainId: sepolia.id,
               })
             }
